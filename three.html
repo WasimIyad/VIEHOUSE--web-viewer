@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VIEHOUSE - 3D Property Viewer</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #1a1a1a;
+      }
+
+      /* Main UI Container - Hidden by default */
+      #ui-container {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 15px;
+        border-radius: 15px;
+        font-size: 13px;
+        pointer-events: none;
+        z-index: 100;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(10px);
+        max-width: 280px;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        color: white;
+        transform: translateX(-100%);
+        opacity: 0;
+      }
+
+      #ui-container.visible {
+        transform: translateX(0);
+        opacity: 1;
+      }
+
+      .ui-toggle {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        border-radius: 50%;
+        color: #000;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 101;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        transition: all 0.3s ease;
+        font-weight: bold;
+      }
+
+      .ui-toggle:hover {
+        transform: scale(1.1);
+        background: white;
+      }
+
+      .ui-section {
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .ui-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+
+      .section-title {
+        font-weight: 600;
+        color: white;
+        margin-bottom: 8px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .control-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+        padding: 4px 0;
+      }
+
+      .control-key {
+        background: rgba(255, 255, 255, 0.9);
+        color: #000;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 11px;
+        min-width: 70px;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+
+      .control-label {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.9);
+        text-align: right;
+        flex: 1;
+        margin-left: 8px;
+      }
+
+      /* Visual Control Cards */
+      .control-cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .control-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .control-icon {
+        width: 30px;
+        height: 30px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #000;
+        font-size: 14px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      .control-card .control-key {
+        background: transparent;
+        color: white;
+        padding: 2px 4px;
+        font-size: 9px;
+        box-shadow: none;
+        min-width: auto;
+      }
+
+      .control-description {
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.7);
+        text-align: center;
+      }
+
+      /* Indicators */
+      #movement-indicator {
+        position: absolute;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        display: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        z-index: 101;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      #rotation-indicator {
+        position: absolute;
+        top: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        display: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        z-index: 101;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      /* Measurement Tool - Hidden by default */
+      #measurement-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 15px;
+        border-radius: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(10px);
+        min-width: 220px;
+        pointer-events: auto;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        color: white;
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      #measurement-panel.visible {
+        transform: translateX(0);
+        opacity: 1;
+      }
+
+      .measurement-toggle {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        border-radius: 50%;
+        color: #000;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 101;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        transition: all 0.3s ease;
+        font-weight: bold;
+      }
+
+      .measurement-toggle:hover {
+        transform: scale(1.1);
+        background: white;
+      }
+
+      .measurement-controls {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .measure-btn {
+        flex: 1;
+        padding: 8px;
+        border: none;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.9);
+        color: #000;
+        font-weight: 600;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+
+      .measure-btn:hover {
+        transform: translateY(-1px);
+        background: white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      .measure-btn:disabled {
+        background: rgba(255, 255, 255, 0.3);
+        color: rgba(255, 255, 255, 0.5);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .measurement-info {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 4px solid rgba(255, 255, 255, 0.9);
+      }
+
+      .measurement-result {
+        font-size: 16px;
+        font-weight: 700;
+        color: white;
+        text-align: center;
+        margin: 8px 0;
+      }
+
+      .measurement-points {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+        text-align: center;
+      }
+
+      /* VIHOUSE Logo - Bright white background */
+      #vihouse-logo {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        z-index: 99;
+        pointer-events: none;
+      }
+
+      .logo-container {
+        width: 80px;
+        height: 80px;
+        background: #ffffff; /* Bright white background */
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(255, 255, 255, 0.8);
+        padding: 12px; /* Increased padding for better bounding */
+        overflow: hidden;
+      }
+
+      .logo-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        max-width: 100%;
+        max-height: 100%;
+      }
+
+      .logo-text {
+        font-size: 14px;
+        font-weight: 700;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        letter-spacing: 1px;
+      }
+
+      .powered-by {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+        margin-top: 2px;
+        text-align: center;
+      }
+
+      /* Tooltip */
+      .tooltip {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 6px 10px;
+        border-radius: 5px;
+        font-size: 11px;
+        pointer-events: none;
+        z-index: 1000;
+        white-space: nowrap;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Toggle Buttons -->
+    <button class="ui-toggle" id="ui-toggle">⚙️</button>
+    <button class="measurement-toggle" id="measurement-toggle">📐</button>
+
+    <!-- Main Navigation Instructions - Hidden by default -->
+    <div id="ui-container">
+      <div class="ui-section">
+        <div class="section-title">🎮 NAVIGATION CONTROLS</div>
+        <div class="control-item">
+          <div class="control-key">LEFT CLICK</div>
+          <div class="control-label">360° Camera Rotation</div>
+        </div>
+        <div class="control-item">
+          <div class="control-key">RIGHT CLICK</div>
+          <div class="control-label">Pan / Move Camera</div>
+        </div>
+        <div class="control-item">
+          <div class="control-key">MOUSE WHEEL</div>
+          <div class="control-label">Zoom In/Out</div>
+        </div>
+        <div class="control-item">
+          <div class="control-key">MIDDLE CLICK</div>
+          <div class="control-label">Quick Zoom</div>
+        </div>
+      </div>
+
+      <div class="ui-section">
+        <div class="section-title">🚀 MOVEMENT</div>
+        <div class="control-item">
+          <div class="control-key">W / ↑</div>
+          <div class="control-label">Move Forward</div>
+        </div>
+        <div class="control-item">
+          <div class="control-key">S / ↓</div>
+          <div class="control-label">Move Backward</div>
+        </div>
+        <div class="control-item">
+          <div class="control-key">A / ←</div>
+          <div class="control-label">Move Left</div>
+        </div>
+        <div class="control-item">
+          <div class="control-key">D / →</div>
+          <div class="control-label">Move Right</div>
+        </div>
+        <div class="control-item">
+          <div class="control-key">Q</div>
+          <div class="control-label">Move Up</div>
+        </div>
+        <div class="control-item">
+          <div class="control-key">E</div>
+          <div class="control-label">Move Down</div>
+        </div>
+        <div class="control-item">
+          <div class="control-key">SHIFT</div>
+          <div class="control-label">Turbo Speed</div>
+        </div>
+      </div>
+
+      <!-- Visual Control Cards -->
+      <div class="ui-section">
+        <div class="section-title">🎯 QUICK CONTROLS</div>
+        <div class="control-cards">
+          <div class="control-card">
+            <div class="control-icon">👁️</div>
+            <div class="control-key">LOOK</div>
+            <div class="control-description">Left Click</div>
+          </div>
+          <div class="control-card">
+            <div class="control-icon">🔄</div>
+            <div class="control-key">PAN</div>
+            <div class="control-description">Right Click</div>
+          </div>
+          <div class="control-card">
+            <div class="control-icon">🏃</div>
+            <div class="control-key">MOVE</div>
+            <div class="control-description">WASD</div>
+          </div>
+          <div class="control-card">
+            <div class="control-icon">⚡</div>
+            <div class="control-key">TURBO</div>
+            <div class="control-description">Shift</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Measurement Tool - Hidden by default -->
+    <div id="measurement-panel">
+      <div class="section-title">📐 MEASUREMENT TOOL</div>
+      <div class="measurement-controls">
+        <button class="measure-btn" id="start-measure">Start Measure</button>
+        <button class="measure-btn" id="clear-measure" disabled>Clear</button>
+      </div>
+      <div class="measurement-info">
+        <div
+          style="
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 6px;
+          "
+        >
+          Click two points in the 3D space to measure distance
+        </div>
+        <div class="measurement-result" id="distance-result">0.00 m</div>
+        <div class="measurement-points" id="points-info">
+          Click first point...
+        </div>
+      </div>
+    </div>
+
+    <!-- VIHOUSE Logo - Updated with bright white background -->
+    <div id="vihouse-logo">
+      <div class="logo-container">
+        <img src="images/VIEHOUSE_logo.png" alt="VIEHOUSE Logo" />
+      </div>
+      <div class="powered-by">POWERED BY<br />VIEHOUSE</div>
+    </div>
+
+    <!-- Indicators -->
+    <div id="movement-indicator">Moving...</div>
+    <div id="rotation-indicator">Rotating Camera...</div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./lib/three/three.module.js",
+          "three/addons/": "./lib/three/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import { LCCRender } from "./sdk/lcc-0.4.0.js";
+
+      const scene = new THREE.Scene();
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setClearColor(0x1a1a1a);
+      document.body.appendChild(renderer.domElement);
+
+      const camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.up.set(0, 0, 1);
+      camera.position.set(0, -5, 2);
+
+      // Store camera rotation state
+      const cameraRotation = {
+        yaw: 0,
+        pitch: 0,
+        roll: 0,
+      };
+
+      // Enhanced OrbitControls
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableRotate = false;
+      controls.enableZoom = true;
+      controls.enablePan = true;
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.panSpeed = 1.5;
+      controls.zoomSpeed = 1.2;
+      controls.mouseButtons = {
+        LEFT: null,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.PAN,
+      };
+      controls.update();
+
+      const lccObj = LCCRender.load(
+        {
+          camera,
+          scene,
+          dataPath: "http://localhost:5501/data/PentHouse",
+          renderLib: THREE,
+          canvas: renderer.domElement,
+          renderer,
+        },
+        (mesh) => console.log("LCC object Loaded:", mesh),
+        (percent) => console.log("LCC loading:", percent * 100 + "%")
+      );
+      window.obj = lccObj;
+
+      // -----------------------------
+      // UI Toggle Functionality - Updated for hidden by default
+      // -----------------------------
+      let uiVisible = false; // Start hidden
+      let measurementVisible = false; // Start hidden
+
+      document.getElementById("ui-toggle").addEventListener("click", () => {
+        uiVisible = !uiVisible;
+        document
+          .getElementById("ui-container")
+          .classList.toggle("visible", uiVisible);
+        document.getElementById("ui-toggle").textContent = uiVisible
+          ? "✕"
+          : "⚙️";
+      });
+
+      document
+        .getElementById("measurement-toggle")
+        .addEventListener("click", () => {
+          measurementVisible = !measurementVisible;
+          document
+            .getElementById("measurement-panel")
+            .classList.toggle("visible", measurementVisible);
+          document.getElementById("measurement-toggle").textContent =
+            measurementVisible ? "✕" : "📐";
+        });
+
+      // -----------------------------
+      // Enhanced Navigation System
+      // -----------------------------
+      let baseSpeed = 0.1;
+      let runSpeed = 0.25;
+      const keysPressed = {};
+      let isRotating = false;
+      let previousMouseX = 0;
+      let previousMouseY = 0;
+
+      // -----------------------------
+      // Measurement System
+      // -----------------------------
+      let isMeasuring = false;
+      let measurementPoints = [];
+      let measurementLine = null;
+      let measurementSpheres = [];
+      const measurementMaterial = new THREE.LineBasicMaterial({
+        color: 0xff0000,
+        linewidth: 2,
+      });
+      const sphereGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+      const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+
+      // Measurement functions
+      function startMeasurement() {
+        isMeasuring = true;
+        measurementPoints = [];
+        clearMeasurementVisuals();
+        document.getElementById("start-measure").textContent =
+          "Click First Point";
+        document.getElementById("points-info").textContent =
+          "Click first point in 3D space...";
+        document.getElementById("clear-measure").disabled = false;
+      }
+
+      function clearMeasurement() {
+        isMeasuring = false;
+        measurementPoints = [];
+        clearMeasurementVisuals();
+        document.getElementById("start-measure").textContent = "Start Measure";
+        document.getElementById("points-info").textContent =
+          "Click first point...";
+        document.getElementById("distance-result").textContent = "0.00 m";
+        document.getElementById("clear-measure").disabled = true;
+      }
+
+      function clearMeasurementVisuals() {
+        if (measurementLine) {
+          scene.remove(measurementLine);
+          measurementLine = null;
+        }
+        measurementSpheres.forEach((sphere) => scene.remove(sphere));
+        measurementSpheres = [];
+      }
+
+      function addMeasurementPoint(point) {
+        measurementPoints.push(point.clone());
+
+        // Add visual sphere at point
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        sphere.position.copy(point);
+        scene.add(sphere);
+        measurementSpheres.push(sphere);
+
+        if (measurementPoints.length === 1) {
+          document.getElementById("start-measure").textContent =
+            "Click Second Point";
+          document.getElementById("points-info").textContent =
+            "First point set. Click second point...";
+        } else if (measurementPoints.length === 2) {
+          calculateDistance();
+          document.getElementById("start-measure").textContent = "New Measure";
+          document.getElementById("points-info").textContent =
+            'Measurement complete. Click "New Measure" to start over.';
+        }
+      }
+
+      function calculateDistance() {
+        if (measurementPoints.length === 2) {
+          const distance = measurementPoints[0].distanceTo(
+            measurementPoints[1]
+          );
+          document.getElementById("distance-result").textContent =
+            distance.toFixed(2) + " m";
+
+          // Create line between points
+          const lineGeometry = new THREE.BufferGeometry().setFromPoints(
+            measurementPoints
+          );
+          measurementLine = new THREE.Line(lineGeometry, measurementMaterial);
+          scene.add(measurementLine);
+        }
+      }
+
+      // Measurement event listeners
+      document
+        .getElementById("start-measure")
+        .addEventListener("click", startMeasurement);
+      document
+        .getElementById("clear-measure")
+        .addEventListener("click", clearMeasurement);
+
+      // Enhanced mouse controls with measurement support
+      renderer.domElement.addEventListener("contextmenu", (e) =>
+        e.preventDefault()
+      );
+
+      renderer.domElement.addEventListener("mousedown", (event) => {
+        if (event.button === 0) {
+          // Left click
+          if (isMeasuring) {
+            // Handle measurement point placement
+            const mouse = new THREE.Vector2();
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            // Create a plane at average scene height for measurement
+            const groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+            const intersectionPoint = new THREE.Vector3();
+            const ray = new THREE.Ray();
+            ray.origin.copy(camera.position);
+            ray.direction.copy(raycaster.ray.direction);
+
+            if (ray.intersectPlane(groundPlane, intersectionPoint)) {
+              addMeasurementPoint(intersectionPoint);
+            }
+          } else {
+            // Normal rotation mode
+            isRotating = true;
+            previousMouseX = event.clientX;
+            previousMouseY = event.clientY;
+            renderer.domElement.requestPointerLock();
+            showRotationIndicator();
+          }
+          event.preventDefault();
+        }
+      });
+
+      renderer.domElement.addEventListener("mouseup", (event) => {
+        if (event.button === 0) {
+          isRotating = false;
+          document.exitPointerLock();
+          hideRotationIndicator();
+        }
+      });
+
+      renderer.domElement.addEventListener("mousemove", (event) => {
+        if (isRotating && !isMeasuring) {
+          const deltaX =
+            event.movementX ||
+            event.mozMovementX ||
+            event.webkitMovementX ||
+            event.clientX - previousMouseX;
+          const deltaY =
+            event.movementY ||
+            event.mozMovementY ||
+            event.webkitMovementY ||
+            event.clientY - previousMouseY;
+
+          if (deltaX !== 0 || deltaY !== 0) {
+            updateCameraRotation(deltaX, deltaY);
+          }
+
+          previousMouseX = event.clientX;
+          previousMouseY = event.clientY;
+        }
+      });
+
+      // Enhanced keyboard controls
+      window.addEventListener("keydown", (e) => {
+        const key = e.key.toLowerCase();
+        keysPressed[key] = true;
+
+        // Quick actions
+        if (key === "r") {
+          // Reset camera
+          resetCamera();
+          e.preventDefault();
+        }
+        if (key === "m") {
+          // Toggle measurement
+          if (isMeasuring) {
+            clearMeasurement();
+          } else {
+            startMeasurement();
+          }
+          e.preventDefault();
+        }
+
+        if (
+          [
+            "w",
+            "a",
+            "s",
+            "d",
+            "q",
+            "e",
+            "arrowup",
+            "arrowdown",
+            "arrowleft",
+            "arrowright",
+          ].includes(key)
+        ) {
+          showMovementIndicator();
+        }
+      });
+
+      window.addEventListener("keyup", (e) => {
+        const key = e.key.toLowerCase();
+        keysPressed[key] = false;
+
+        if (
+          [
+            "w",
+            "a",
+            "s",
+            "d",
+            "q",
+            "e",
+            "arrowup",
+            "arrowdown",
+            "arrowleft",
+            "arrowright",
+          ].includes(key)
+        ) {
+          hideMovementIndicator();
+        }
+      });
+
+      function updateCameraRotation(deltaX, deltaY) {
+        const sensitivity = 0.002;
+        cameraRotation.yaw -= deltaX * sensitivity;
+        cameraRotation.pitch -= deltaY * sensitivity;
+
+        const quaternion = new THREE.Quaternion();
+        const yawQuaternion = new THREE.Quaternion();
+        yawQuaternion.setFromAxisAngle(
+          new THREE.Vector3(0, 0, 1),
+          cameraRotation.yaw
+        );
+        const pitchQuaternion = new THREE.Quaternion();
+        pitchQuaternion.setFromAxisAngle(
+          new THREE.Vector3(1, 0, 0),
+          cameraRotation.pitch
+        );
+
+        quaternion.multiplyQuaternions(yawQuaternion, pitchQuaternion);
+        camera.setRotationFromQuaternion(quaternion);
+        updateControlsTarget();
+      }
+
+      function resetCamera() {
+        camera.position.set(0, -5, 2);
+        cameraRotation.yaw = 0;
+        cameraRotation.pitch = 0;
+        camera.setRotationFromEuler(new THREE.Euler(0, 0, 0));
+        updateControlsTarget();
+      }
+
+      function updateControlsTarget() {
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+        controls.target.copy(camera.position).add(forward.multiplyScalar(10));
+      }
+
+      function showMovementIndicator() {
+        const indicator = document.getElementById("movement-indicator");
+        indicator.style.display = "block";
+        indicator.textContent = keysPressed["shift"]
+          ? "TURBO MODE - Running..."
+          : "Moving...";
+      }
+
+      function hideMovementIndicator() {
+        const indicator = document.getElementById("movement-indicator");
+        indicator.style.display = "none";
+      }
+
+      function showRotationIndicator() {
+        const indicator = document.getElementById("rotation-indicator");
+        indicator.style.display = "block";
+        indicator.textContent = "Rotating Camera...";
+      }
+
+      function hideRotationIndicator() {
+        const indicator = document.getElementById("rotation-indicator");
+        indicator.style.display = "none";
+      }
+
+      // Enhanced Movement System with arrow key support
+      function updateMovement() {
+        let currentSpeed = keysPressed["shift"] ? runSpeed : baseSpeed;
+
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+        forward.z = 0;
+        forward.normalize();
+
+        const right = new THREE.Vector3(-forward.y, forward.x, 0);
+        const moveVector = new THREE.Vector3();
+
+        // WASD + Arrow keys
+        if (keysPressed["w"] || keysPressed["arrowup"]) moveVector.add(forward);
+        if (keysPressed["s"] || keysPressed["arrowdown"])
+          moveVector.sub(forward);
+        if (keysPressed["d"] || keysPressed["arrowleft"]) moveVector.sub(right);
+        if (keysPressed["a"] || keysPressed["arrowright"])
+          moveVector.add(right);
+        if (keysPressed["q"]) moveVector.z += 1;
+        if (keysPressed["e"]) moveVector.z -= 1;
+
+        if (moveVector.length() > 0) {
+          moveVector.normalize().multiplyScalar(currentSpeed);
+          camera.position.add(moveVector);
+          controls.target.add(moveVector);
+        }
+      }
+
+      function animate() {
+        renderer.setAnimationLoop(() => {
+          updateMovement();
+          controls.update();
+          LCCRender.update();
+          renderer.render(scene, camera);
+        });
+      }
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      animate();
+    </script>
+  </body>
+</html>
